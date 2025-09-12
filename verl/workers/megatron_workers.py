@@ -233,26 +233,15 @@ class ActorRolloutRefWorker(MegatronWorker, DistProfilerExtension):
                 init_method=os.environ.get("DIST_INIT_METHOD", None),
             )
             get_torch_device().set_device(rank)
-<<<<<<< HEAD
-            mpu.initialize_model_parallel(
-                tensor_model_parallel_size=self.config.actor.m极egatron.tensor_model_parallel_size,
-=======
 
             _initialize_model_parallel_compat(
                 tensor_model_parallel_size=self.config.actor.megatron.tensor_model_parallel_size,
->>>>>>> e8156789b3326d11151b44bbe2bb3af08f990fab
                 pipeline_model_parallel_size=self.config.actor.megatron.pipeline_model_parallel_size,
                 virtual_pipeline_model_parallel_size=self.config.actor.megatron.virtual_pipeline_model_parallel_size,
                 use_sharp=False,
-<<<<<<< HEAD
-                context_parallel_size=self.config.actor.megatron.context_parallel_size,
-                expert_model_parallel_size=self.config.actor.megatron.expert_model_parallel_size,
-                expert_tensor_parallel极size=self.config.actor.megatron.expert_tensor_parallel_size,
-=======
                 context_parallel_size=getattr(self.config.actor.megatron, "context_parallel_size", 1),
                 expert_model_parallel_size=getattr(self.config.actor.megatron, "expert_model_parallel_size", 1),
                 expert_tensor_parallel_size=getattr(self.config.actor.megatron, "expert_tensor_parallel_size", 1),
->>>>>>> e8156789b3326d11151b44bbe2bb3af08f990fab
                 nccl_communicator_config_path=None,
             )
 
