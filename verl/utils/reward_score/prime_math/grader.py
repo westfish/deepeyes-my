@@ -95,13 +95,15 @@ This logic is largely copied from the Hendrycks' MATH release (math_equivalence)
 import contextlib
 import math
 import re
-import signal
 from math import isclose
-from typing import Union
 
+# sympy related
 from sympy import N, simplify
 from sympy.parsing.latex import parse_latex
 from sympy.parsing.sympy_parser import parse_expr
+
+# verl related
+from verl.utils.py_functional import timeout_limit
 
 
 def is_digit(s):
@@ -170,8 +172,8 @@ def handle_pi(string, pi):
 
 
 def math_equal(
-    prediction: Union[bool, float, str],
-    reference: Union[float, str],
+    prediction: bool | float | str,
+    reference: float | str,
     include_percentage: bool = True,
     tolerance: float = 1e-4,
     timeout: float = 10.0,
@@ -248,7 +250,7 @@ def math_equal(
         if len(pred_parts) == len(ref_parts) and all(
             [
                 math_equal(pred_pt, ref_pt, include_percentage, tolerance)
-                for pred_pt, ref_pt in zip(pred_parts, ref_parts)
+                for pred_pt, ref_pt in zip(pred_parts, ref_parts, strict=True)
             ]
         ):
             return True
@@ -274,7 +276,7 @@ def math_equal(
         if len(pred_parts) == len(ref_parts) and all(
             [
                 math_equal(pred_pt, ref_pt, include_percentage, tolerance)
-                for pred_pt, ref_pt in zip(pred_parts, ref_parts)
+                for pred_pt, ref_pt in zip(pred_parts, ref_parts, strict=False)
             ]
         ):
             return True
@@ -287,7 +289,7 @@ def math_equal(
             if len(pred_matrix) == len(ref_matrix_items) and all(
                 [
                     math_equal(pred, ref, include_percentage, tolerance)
-                    for ref, pred in zip(ref_matrix_items, pred_matrix)
+                    for ref, pred in zip(ref_matrix_items, pred_matrix, strict=False)
                 ]
             ):
                 return True
@@ -299,17 +301,17 @@ def math_equal(
                 pred_matrix = eval(prediction)
                 # ref_matrix_items = reference.split()[1:-1:2]
                 ref_matrix_items = (
-                    reference.lstrip("\\begin{pmatrix}")
+                    reference.lstrip("\\begin{pmatrix}")  # noqa: B005
                     .lstrip("\begin{pmatrix}")
                     .rstrip("\\end{pmatrix}")
                     .rstrip("\end{pmatrix}")
-                )
+                )  # noqa: B005
                 ref_matrix_items = ref_matrix_items.split("\\")
                 ref_matrix_items = [row.split("&") if "&" in row else row for row in ref_matrix_items]
                 if len(pred_matrix) == len(ref_matrix_items) and all(
                     [
                         math_equal(pred, ref, include_percentage, tolerance)
-                        for ref, pred in zip(ref_matrix_items, pred_matrix)
+                        for ref, pred in zip(ref_matrix_items, pred_matrix, strict=False)
                     ]
                 ):
                     return True
@@ -323,46 +325,38 @@ def symbolic_equal(a, b, tolerance, timeout=10.0):
     def _parse(s):
         for f in [parse_expr, parse_latex]:
             try:
-                with time_limit(timeout):
+                with timeout_limit(seconds=timeout):
                     return f(s)
+            except TimeoutError:
+                print(f"Parsing timed out for {s}")
+                continue
             except Exception:
-                pass
+                continue
         return s
 
     a = _parse(a)
     b = _parse(b)
 
     try:
-        with time_limit(timeout):
+        with timeout_limit(seconds=timeout):
             if simplify(a - b) == 0:
                 return True
+    except TimeoutError:
+        print(f"Simplification timed out for {a} - {b}")
+        pass
     except Exception:
         pass
 
     try:
-        with time_limit(timeout):
+        with timeout_limit(seconds=timeout):
             if isclose(N(a), N(b), rel_tol=tolerance):
                 return True
+    except TimeoutError:
+        print(f"Numerical evaluation timed out for {a}, {b}")
+        pass
     except Exception:
         pass
     return False
-
-
-class TimeoutException(Exception):
-    pass
-
-
-@contextlib.contextmanager
-def time_limit(seconds: float):
-    def signal_handler(signum, frame):
-        raise TimeoutException("Timed out!")
-
-    signal.setitimer(signal.ITIMER_REAL, seconds)
-    signal.signal(signal.SIGALRM, signal_handler)
-    try:
-        yield
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
 
 
 def format_intervals(prediction):
