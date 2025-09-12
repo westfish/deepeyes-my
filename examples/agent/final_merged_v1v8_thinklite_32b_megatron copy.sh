@@ -18,7 +18,7 @@ mkdir -p ./logs
 PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo --config-name ppo_megatron_trainer \
     +debug=False \
     +vs_debug=False \
-    data.train_files=[${VISUAL_DATASET_TRAIN_0_1_2}] \
+    data.train_files=[${VISUAL_DATASET_TRAIN_0_1_2},${VISUAL_DATASET_TRAIN_0_8},${EUREKA_DATASET_TRAIN}] \
     data.val_files=[${EUREKA_DATASET_TRAIN}] \
     data.train_batch_size=8 \
     data.max_prompt_length=8192 \

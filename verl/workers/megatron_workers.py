@@ -193,16 +193,14 @@ class ActorRolloutRefWorker(MegatronWorker, DistProfilerExtension):
                 init_method=os.environ.get("DIST_INIT_METHOD", None),
             )
             get_torch_device().set_device(rank)
-
             mpu.initialize_model_parallel(
-                tensor_model_parallel_size=self.config.actor.megatron.tensor_model_parallel_size,
+                tensor_model_parallel_size=self.config.actor.m极egatron.tensor_model_parallel_size,
                 pipeline_model_parallel_size=self.config.actor.megatron.pipeline_model_parallel_size,
                 virtual_pipeline_model_parallel_size=self.config.actor.megatron.virtual_pipeline_model_parallel_size,
-                pipeline_model_parallel_split_rank=None,
                 use_sharp=False,
                 context_parallel_size=self.config.actor.megatron.context_parallel_size,
                 expert_model_parallel_size=self.config.actor.megatron.expert_model_parallel_size,
-                expert_tensor_parallel_size=self.config.actor.megatron.expert_tensor_parallel_size,
+                expert_tensor_parallel极size=self.config.actor.megatron.expert_tensor_parallel_size,
                 nccl_communicator_config_path=None,
             )
 
