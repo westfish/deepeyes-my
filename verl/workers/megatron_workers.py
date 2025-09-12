@@ -79,6 +79,46 @@ logger = logging.getLogger(__file__)
 logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))
 
 
+def _initialize_model_parallel_compat(**kwargs_all):
+    """Initialize Megatron model parallel with backward-compatible kwargs.
+
+    Older Megatron-LM versions do not accept some newer keyword args
+    (e.g., pipeline_model_parallel_split_rank, context_parallel_size, etc.).
+    This helper filters the kwargs based on the installed function signature
+    and retries with progressively smaller sets on TypeError.
+    """
+    import inspect
+
+    # First attempt: filter by the actual signature
+    try:
+        sig = inspect.signature(mpu.initialize_model_parallel)
+        supported = set(sig.parameters.keys())
+        filtered = {k: v for k, v in kwargs_all.items() if k in supported and v is not None}
+        return mpu.initialize_model_parallel(**filtered)
+    except (TypeError, ValueError):
+        pass
+
+    # Second attempt: a common minimal set
+    try:
+        minimal_keys = [
+            "tensor_model_parallel_size",
+            "pipeline_model_parallel_size",
+            "virtual_pipeline_model_parallel_size",
+        ]
+        filtered = {k: kwargs_all.get(k) for k in minimal_keys if kwargs_all.get(k) is not None}
+        return mpu.initialize_model_parallel(**filtered)
+    except TypeError:
+        pass
+
+    # Final attempt: tensor and pipeline only
+    filtered = {
+        k: kwargs_all.get(k)
+        for k in ["tensor_model_parallel_size", "pipeline_model_parallel_size"]
+        if kwargs_all.get(k) is not None
+    }
+    return mpu.initialize_model_parallel(**filtered)
+
+
 def set_random_seed(seed):
     import random
 
@@ -193,14 +233,26 @@ class ActorRolloutRefWorker(MegatronWorker, DistProfilerExtension):
                 init_method=os.environ.get("DIST_INIT_METHOD", None),
             )
             get_torch_device().set_device(rank)
+<<<<<<< HEAD
             mpu.initialize_model_parallel(
                 tensor_model_parallel_size=self.config.actor.m极egatron.tensor_model_parallel_size,
+=======
+
+            _initialize_model_parallel_compat(
+                tensor_model_parallel_size=self.config.actor.megatron.tensor_model_parallel_size,
+>>>>>>> e8156789b3326d11151b44bbe2bb3af08f990fab
                 pipeline_model_parallel_size=self.config.actor.megatron.pipeline_model_parallel_size,
                 virtual_pipeline_model_parallel_size=self.config.actor.megatron.virtual_pipeline_model_parallel_size,
                 use_sharp=False,
+<<<<<<< HEAD
                 context_parallel_size=self.config.actor.megatron.context_parallel_size,
                 expert_model_parallel_size=self.config.actor.megatron.expert_model_parallel_size,
                 expert_tensor_parallel极size=self.config.actor.megatron.expert_tensor_parallel_size,
+=======
+                context_parallel_size=getattr(self.config.actor.megatron, "context_parallel_size", 1),
+                expert_model_parallel_size=getattr(self.config.actor.megatron, "expert_model_parallel_size", 1),
+                expert_tensor_parallel_size=getattr(self.config.actor.megatron, "expert_tensor_parallel_size", 1),
+>>>>>>> e8156789b3326d11151b44bbe2bb3af08f990fab
                 nccl_communicator_config_path=None,
             )
 
@@ -844,15 +896,15 @@ class CriticWorker(MegatronWorker, DistProfilerExtension):
             )
             get_torch_device().set_device(rank)
 
-            mpu.initialize_model_parallel(
+            _initialize_model_parallel_compat(
                 tensor_model_parallel_size=self.config.megatron.tensor_model_parallel_size,
                 pipeline_model_parallel_size=self.config.megatron.pipeline_model_parallel_size,
                 virtual_pipeline_model_parallel_size=self.config.megatron.virtual_pipeline_model_parallel_size,
                 pipeline_model_parallel_split_rank=None,
                 use_sharp=False,
-                context_parallel_size=self.config.megatron.context_parallel_size,
-                expert_model_parallel_size=self.config.megatron.expert_model_parallel_size,
-                expert_tensor_parallel_size=self.config.megatron.expert_tensor_parallel_size,
+                context_parallel_size=getattr(self.config.megatron, "context_parallel_size", 1),
+                expert_model_parallel_size=getattr(self.config.megatron, "expert_model_parallel_size", 1),
+                expert_tensor_parallel_size=getattr(self.config.megatron, "expert_tensor_parallel_size", 1),
                 nccl_communicator_config_path=None,
             )
 
@@ -1125,15 +1177,15 @@ class RewardModelWorker(MegatronWorker, DistProfilerExtension):
             )
             get_torch_device().set_device(rank)
 
-            mpu.initialize_model_parallel(
+            _initialize_model_parallel_compat(
                 tensor_model_parallel_size=self.config.megatron.tensor_model_parallel_size,
                 pipeline_model_parallel_size=self.config.megatron.pipeline_model_parallel_size,
                 virtual_pipeline_model_parallel_size=self.config.megatron.virtual_pipeline_model_parallel_size,
                 pipeline_model_parallel_split_rank=None,
                 use_sharp=False,
-                context_parallel_size=self.config.megatron.context_parallel_size,
-                expert_model_parallel_size=self.config.megatron.expert_model_parallel_size,
-                expert_tensor_parallel_size=self.config.megatron.expert_tensor_parallel_size,
+                context_parallel_size=getattr(self.config.megatron, "context_parallel_size", 1),
+                expert_model_parallel_size=getattr(self.config.megatron, "expert_model_parallel_size", 1),
+                expert_tensor_parallel_size=getattr(self.config.megatron, "expert_tensor_parallel_size", 1),
                 nccl_communicator_config_path=None,
             )
 
