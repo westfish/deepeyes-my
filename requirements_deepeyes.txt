@@ -281,7 +281,7 @@ tiktoken==0.7.0
 tokenizers==0.21.1
 toml==0.10.2
 torch==2.6.0
-torch_tensorrt==2.5.0
+torch_tensorrt==2.8.0
 torchaudio==2.6.0
 torchdata==0.11.0
 torchmetrics==1.0.3
