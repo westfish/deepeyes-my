@@ -321,4 +321,4 @@ xgrammar==0.1.16
 xxhash==3.5.0
 yarl==1.17.1
 zipp==3.21.0
-zstandard==0.23.0
+zstandard==0.25.0
