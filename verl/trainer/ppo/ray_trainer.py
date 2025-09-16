@@ -188,6 +188,82 @@ def compute_response_mask(data: DataProto):
     return action_or_attn_mask[:, -response_length:]
 
 
+def _apply_group_length_clip(
+    data: DataProto,
+    reward_tensor: torch.Tensor,
+    uid_key: str = "uid",
+    reward_threshold: float = 0.0,
+    thought_end_id: int = -1,
+):
+    """Apply group-wise length clipping by masking tokens beyond the shortest positive sample length
+    or up to the first occurrence of a thought-end token.
+
+    Grouping is done by `data.non_tensor_batch[uid_key]` prefixes before repeat. In this codebase,
+    samples are repeated `n` times via `batch.repeat(repeat_times=n, interleave=True)` while `uid`
+    is assigned before repeating, making `uid` identical for items from the same prompt across repeats.
+
+    This function updates `data.batch["response_mask"]` in-place to reflect the clipped lengths.
+    """
+    if uid_key not in data.non_tensor_batch:
+        return
+
+    uids = data.non_tensor_batch[uid_key]
+    responses = data.batch["responses"]  # [B, R]
+    response_mask = data.batch.get("response_mask", compute_response_mask(data))  # [B, R]
+
+    # Build groups: uid -> indices
+    from collections import defaultdict
+
+    uid_to_indices = defaultdict(list)
+    for idx, uid in enumerate(uids):
+        uid_to_indices[str(uid)].append(idx)
+
+    # For each group, determine clip length from positives
+    for _, indices in uid_to_indices.items():
+        # Determine which indices are positive by reward at last valid token
+        # reward_tensor shape is [B, R], rewards placed at last valid token per sample
+        group_rewards = reward_tensor[indices]
+        # Positive if any token reward > threshold (safe: check max over sequence)
+        is_positive = (group_rewards > reward_threshold).any(dim=-1)
+
+        # Compute length per sample: either position of thought_end_id (+1) or full valid response length
+        group_responses = responses[indices]
+        # current mask for response tokens
+        group_resp_mask = response_mask[indices]
+        valid_lengths = group_resp_mask.sum(dim=-1)  # [G]
+
+        if thought_end_id != -1:
+            # Find first occurrence position (1-based length)
+            # If not found, fallback to valid length
+            end_pos = torch.full_like(valid_lengths, fill_value=0)
+            # Iterate per row to find index efficiently without materializing large one-hot
+            for i, row in enumerate(group_responses):
+                matches = (row == thought_end_id).nonzero(as_tuple=False)
+                if matches.numel() > 0:
+                    end_pos[i] = matches[0, 0] + 1
+                else:
+                    end_pos[i] = valid_lengths[i]
+            sample_lengths = end_pos
+        else:
+            sample_lengths = valid_lengths
+
+        # Among positives, find minimum valid length
+        if is_positive.any():
+            pos_lengths = sample_lengths[is_positive]
+            clip_len = int(torch.min(pos_lengths).item())
+            if clip_len <= 0:
+                continue
+            # Apply clipping: zero out mask beyond clip_len for all samples in the group
+            # Keep prompt part untouched; response_mask only covers response tokens
+            new_group_mask = group_resp_mask.clone()
+            if new_group_mask.shape[1] > clip_len:
+                new_group_mask[:, clip_len:] = 0
+            response_mask[indices] = new_group_mask
+
+    data.batch["response_mask"] = response_mask
+    return
+
+
 def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1, norm_adv_by_std_in_grpo=True):
     # Back-compatible with trainers that do not compute response mask in fit
     if "response_mask" not in data.batch:
@@ -1043,6 +1119,17 @@ class RayPPOTrainer:
                             metrics.update(kl_metrics)
                         else:
                             batch.batch["token_level_rewards"] = batch.batch["token_level_scores"]
+
+                        # Optionally apply group-wise length clipping before computing advantages
+                        glc_cfg = self.config.algorithm.get("group_length_clip", {})
+                        if glc_cfg.get("enable", False):
+                            _apply_group_length_clip(
+                                data=batch,
+                                reward_tensor=reward_tensor,
+                                uid_key="uid",
+                                reward_threshold=float(glc_cfg.get("reward_threshold", 0.0)),
+                                thought_end_id=int(glc_cfg.get("thought_end_id", -1)),
+                            )
 
                         # compute advantages, executed on the driver process
                         norm_adv_by_std_in_grpo = self.config.algorithm.get(

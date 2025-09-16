@@ -157,9 +157,6 @@ def agent_rollout_loop(config, vllm_engine, vllm_inputs, prompts, multi_modal_in
     active_mask = []
     mm_input_list = []
     tool_call_cnt_list = []
-    # Track which samples hit the max-turn cap (i.e., not naturally done)
-    ignore_exceed = bool(getattr(config.agent, "ignore_exceed_max_turn", False))
-    turn_exceed_mask = []
 
     env = ParallelEnv(config.agent, tokenizer, processor)
     env.reset(prompts, vllm_inputs, n=sampling_params.n)
@@ -178,7 +175,6 @@ def agent_rollout_loop(config, vllm_engine, vllm_inputs, prompts, multi_modal_in
             active_mask.append(True)
             mm_input_list.append(deepcopy(multi_modal_inputs[i]))
             tool_call_cnt_list.append(0)
-            turn_exceed_mask.append(False)
 
     pg = vllm_ps.get_tp_group()
     max_total_length = config.prompt_length + config.response_length
@@ -227,14 +223,7 @@ def agent_rollout_loop(config, vllm_engine, vllm_inputs, prompts, multi_modal_in
                 active_mask[idx] = False
                 continue
 
-            # If we reached the last allowed step and the episode is not done
-            if step == config.agent.max_turns - 1 and not done:
-                if ignore_exceed:
-                    turn_exceed_mask[idx] = True
-                active_mask[idx] = False
-                continue
-
-            if done:
+            if done or step == config.agent.max_turns - 1:
                 active_mask[idx] = False
                 continue
             tool_call_cnt_list[idx] += 1
@@ -311,15 +300,6 @@ def agent_rollout_loop(config, vllm_engine, vllm_inputs, prompts, multi_modal_in
     reward_tensor = pad_2d_list_to_length(reward_tensor_list, 0.0, max_total_length).to(target_device)
 
     tool_call_tensor = torch.tensor(tool_call_cnt_list, dtype=torch.float32).to(target_device).unsqueeze(1)
-
-    # Zero out action mask on response region for samples that exceeded max turns,
-    # so they don't contribute to training losses/advantages.
-    if ignore_exceed and any(turn_exceed_mask):
-        for i, exceeded in enumerate(turn_exceed_mask):
-            if exceeded:
-                action_mask_tensor[i, -config.response_length: ] = 0
-                # env_reward already zeros by default; make sure response-region reward is zero
-                reward_tensor[i, -config.response_length: ] = 0.0
     return DataProto.from_dict(
         tensors={
             "response": state_tensor[:, -config.response_length: ],

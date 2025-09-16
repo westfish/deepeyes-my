@@ -3,6 +3,10 @@ set -x
 PROJECT_NAME="agent_vlagent"
 EXPERIMENT_NAME="final_merged_v1v8_thinklite_32b_v0522"
 
+# Usage: ./final_merged_v1v8_thinklite.sh [ENABLE_GROUP_CLIP]
+# ENABLE_GROUP_CLIP: 1 to enable group length clip, 0 to disable (default 0)
+ENABLE_GROUP_CLIP=${1:-0}
+
 export SAVE_CHECKPOINT_DIR=/root/paddlejob/workspace/env_run/zx/torch_project/deepeyes_verl_checkpoints
 # export VLLM_ATTENTION_BACKEND=XFORMERS # vllm + qwen2-7b with flash_attn has some issues
 
@@ -26,6 +30,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     data.filter_overlong_prompts=True \
     algorithm.adv_estimator=grpo \
     algorithm.kl_ctrl.kl_coef=0.0 \
+    algorithm.group_length_clip.enable=${ENABLE_GROUP_CLIP} \
     actor_rollout_ref.model.path=${REF_MODEL_PATH} \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.optim.lr=1e-6 \
