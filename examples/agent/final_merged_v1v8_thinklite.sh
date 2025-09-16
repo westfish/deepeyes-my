@@ -55,6 +55,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.agent.single_response_max_tokens=10240 \
     actor_rollout_ref.rollout.agent.max_turns=5 \
     actor_rollout_ref.rollout.agent.concurrent_workers=1 \
+    actor_rollout_ref.rollout.agent.ignore_exceed_max_turn=True \
     actor_rollout_ref.rollout.agent.show_tqdm=True \
     trainer.critic_warmup=0 \
     trainer.logger=['console','wandb','rl_logging_board'] \

@@ -130,6 +130,7 @@ actor_rollout_ref:
       vl_model_path: ${actor_rollout_ref.model.path}
       max_vllm_images: 32
       max_vllm_videos: 1
+      ignore_exceed_max_turn: False
 
 critic:
   rollout_n: ${actor_rollout_ref.rollout.n}
