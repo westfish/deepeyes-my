@@ -79,6 +79,8 @@ class VisualToolBoxV2(ToolBase):
                 # Zoom in by cropping the image
                 # image_path = args["image_path"]
                 bbox = args["bbox_2d"]
+                # bbox provided in [0, 1000] range, convert to pixel coordinates
+                bbox = self.denorm_bbox_1000(*bbox)
                 bbox = self.maybe_resize_bbox(*bbox)
                 if not bbox:
                     raise ValueError(f"ZOOM IN ARGUMENTS ARE INVALID")
@@ -164,10 +166,30 @@ class VisualToolBoxV2(ToolBase):
             return [new_left, new_top, new_right, new_bottom]
         return [left, top, right, bottom]
 
+    def denorm_bbox_1000(self, left, top, right, bottom):
+        """
+        Convert bbox from [0, 1000] normalized coordinates back to pixel coordinates
+        using current image width/height, and clamp to valid region with at least 1px size.
+        """
+        img_width = self.width
+        img_height = self.height
+
+        left = left / 1000.0 * img_width
+        right = right / 1000.0 * img_width
+        top = top / 1000.0 * img_height
+        bottom = bottom / 1000.0 * img_height
+
+        left = max(0, min(left, img_width))
+        top = max(0, min(top, img_height))
+        right = max(left + 1, min(right, img_width))
+        bottom = max(top + 1, min(bottom, img_height))
+
+        return [left, top, right, bottom]
+
 
 if __name__ == "__main__":
     # Example usage (for testing)
-    tool = VisualToolBox("visual_toolbox", "Tool for image processing", {})
+    tool = VisualToolBoxV2("visual_toolbox_v2", "Tool for image processing", {})
     
     # Test zoom in tool (should return reward=0.1)
     zoom_in_action = """
