@@ -10,7 +10,8 @@ openai_api_key = "EMPTY"
 openai_api_base_list = [
     # "http://172.30.52.123:8000/v1",
     # "http://10.39.3.123:18901/v1",
-    os.environ.get("LLM_AS_A_JUDGE_BASE", "http://10.39.3.123:18901/v1"),
+    # os.environ.get("LLM_AS_A_JUDGE_BASE", "http://10.39.3.123:18901/v1"),
+    os.environ.get("LLM_AS_A_JUDGE_BASE", "http://10.95.244.144:18901/v1"),
 ]
 
 client_list = []
@@ -206,7 +207,8 @@ def compute_score(predict_str: str, ground_truth: str, extra_info=None) -> float
     if count_answer_1 != count_answer_2:
         is_format_error = True
 
-    answer_text = predict_str.split("<answer>")[-1].split("</answer>")[0].strip()
+    # answer_text = predict_str.split("<answer>")[-1].split("</answer>")[0].strip()
+    answer_text = predict_str.split('</think>')[-1].split("</answer>")[0].strip()
 
     # pattern = re.compile(r'<\|im_start\|>assistant(.*?)$', re.DOTALL)  # 匹配最后一个 target 后的所有内容
     # match = pattern.search(predict_str)

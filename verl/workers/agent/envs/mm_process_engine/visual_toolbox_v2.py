@@ -57,9 +57,9 @@ class VisualToolBoxV2(ToolBase):
             info: Additional info.
         """
         
-        answer = self.extract_answer(action_string)
-        if answer:
-            return "", 0.0, True, {}
+        # answer = self.extract_answer(action_string)
+        # if answer:
+        #     return "", 0.0, True, {}
         action = self.extract_action(action_string)
         if not action:
             return "", 0.0, True, {}
@@ -101,8 +101,12 @@ class VisualToolBoxV2(ToolBase):
             else:
                 raise ValueError(f"Unknown tool name: {tool_name}")
             # Prepare the observation
+            # obs = {
+            #     "prompt": "\n<|im_start|>user\n" + "<tool_response>" +"<image>" + self.user_prompt + "</tool_response>" + "<|im_end|>\n<|im_start|>assistant\n",
+            #     "multi_modal_data": {"image": [current_image]}
+            # }
             obs = {
-                "prompt": "\n<|im_start|>user\n" + "<tool_response>" +"<image>" + self.user_prompt + "</tool_response>" + "<|im_end|>\n<|im_start|>assistant\n",
+                "prompt": "\n<|im_start|>user\n" + "<tool_response>" +"<image>"  + "</tool_response>" + "<|im_end|>\n<|im_start|>assistant\n",
                 "multi_modal_data": {"image": [current_image]}
             }
             reward = 0.0  # Reward for successful tool call with correct JSON
