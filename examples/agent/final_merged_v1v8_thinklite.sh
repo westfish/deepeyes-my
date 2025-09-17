@@ -1,7 +1,7 @@
 set -x
 
 PROJECT_NAME="agent_vlagent"
-EXPERIMENT_NAME="final_merged_v1v8_thinklite_32b_v0522"
+EXPERIMENT_NAME="final_merged_v1v8_thinklite_v0917"
 
 export SAVE_CHECKPOINT_DIR=/root/paddlejob/workspace/env_run/zx/torch_project/deepeyes_verl_checkpoints
 # export VLLM_ATTENTION_BACKEND=XFORMERS # vllm + qwen2-7b with flash_attn has some issues
